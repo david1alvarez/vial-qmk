@@ -1,8 +1,8 @@
- // Copyright 2023 QMK
+// Copyright 2023 QMK
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include QMK_KEYBOARD_H
-#define NUM_TIMEOUT 300000  // screensaver timeout in milliseconds
+#define NUM_TIMEOUT 10 * 60 * 1000  // 10 min milliseconds
 
 void keyboard_post_init_kb() {
     rgb_matrix_enable();
@@ -11,16 +11,47 @@ void keyboard_post_init_kb() {
 }
 
 bool is_screen_saver_active = false;
+uint16_t last_pattern = RGB_MATRIX_SOLID_COLOR;
+uint16_t base_layer_pattern = RGB_MATRIX_SOLID_COLOR;
+
+void set_matrix(uint16_t pattern) {
+    switch (pattern) {
+        case RGB_MATRIX_DIGITAL_RAIN:
+        case RGB_MATRIX_BAND_SPIRAL_VAL:
+        case RGB_MATRIX_CYCLE_LEFT_RIGHT:
+        case RGB_MATRIX_CYCLE_UP_DOWN:
+        case RGB_MATRIX_CYCLE_OUT_IN:
+        case RGB_MATRIX_CYCLE_OUT_IN_DUAL:
+        case RGB_MATRIX_RAINBOW_MOVING_CHEVRON:
+        case RGB_MATRIX_CYCLE_PINWHEEL:
+        case RGB_MATRIX_DUAL_BEACON:
+        case RGB_MATRIX_RAINBOW_BEACON:
+            rgb_matrix_sethsv(0, 255, 255);
+            rgb_matrix_mode(pattern);
+            break;
+        case RGB_MATRIX_GRADIENT_UP_DOWN:
+            rgb_matrix_sethsv(157, 168, 255);
+            rgb_matrix_mode(pattern);
+            break;
+        case RGB_MATRIX_SOLID_COLOR:
+            rgb_matrix_sethsv(30, 168, 255);
+            rgb_matrix_mode(pattern);
+            break;
+        default:
+            rgb_matrix_sethsv(30, 168, 255);
+            rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR);
+            break;
+    }
+}
 
 void matrix_scan_user(void) { // matrix screensaver
     if (is_screen_saver_active && last_input_activity_elapsed() < NUM_TIMEOUT) {
-        rgb_matrix_sethsv(30, 168, 255);
-        rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR);
+        set_matrix(last_pattern);
         is_screen_saver_active = false;
     }
     if (!is_screen_saver_active && last_input_activity_elapsed() > NUM_TIMEOUT) {
-        rgb_matrix_sethsv(0, 255, 255);
-        rgb_matrix_mode(RGB_MATRIX_DIGITAL_RAIN);
+        last_pattern = rgb_matrix_get_mode();
+        set_matrix(RGB_MATRIX_DIGITAL_RAIN);
         is_screen_saver_active = true;
     }
 }
@@ -36,7 +67,6 @@ int rgb_patterns[9] = {
     RGB_MATRIX_DUAL_BEACON,
     RGB_MATRIX_RAINBOW_BEACON
 };
-int rgb_pattern_index = 0;
 
 enum layers {
     BASE,  // default layer
@@ -45,40 +75,30 @@ enum layers {
     EXT,  // extension layer for arrow keys and numpad
 };
 
-// Each layer gets a name for readability, which is then used in the keymap matrix below.
-// The underscores don't mean anything - you can have a layer called STUFF or any other name.
-enum my_keycodes {
-    CLR_FUN,
-    CLR_NRM,
-};
-
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case TO(GAME):
             if (record->event.pressed) {
                 if (IS_LAYER_ON(GAME)) {
-                    rgb_matrix_sethsv(30, 168, 255);
-                    rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR);
+                    set_matrix(base_layer_pattern);
                     layer_off(GAME);
                 } else {
                     int pattern = rgb_patterns[random() % 9];
-                    rgb_pattern_index = pattern;
-                    rgb_matrix_sethsv(0, 255, 255);
-                    rgb_matrix_mode(pattern);
+                    set_matrix(pattern);
                     layer_move(GAME);
                 }
             }
             return false;
-        case CLR_FUN:
+        case PB_1:
             if (record->event.pressed) {
-                rgb_matrix_sethsv(157, 168, 255);
-                rgb_matrix_mode(RGB_MATRIX_GRADIENT_UP_DOWN);
+                base_layer_pattern = RGB_MATRIX_GRADIENT_UP_DOWN;
+                set_matrix(RGB_MATRIX_GRADIENT_UP_DOWN);
             }
             return false;
-        case CLR_NRM:
+        case PB_2:
             if (record->event.pressed) {
-                rgb_matrix_sethsv(30, 168, 255);
-                rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR);
+                base_layer_pattern = RGB_MATRIX_SOLID_COLOR;
+                set_matrix(RGB_MATRIX_SOLID_COLOR);
             }
             return false;
         default:
@@ -121,8 +141,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
  * |      |      |      |      |      |      |-------|    |-------|      |      |      |      |      |      |
  * `-----------------------------------------/       /     \      \-----------------------------------------'
- *            |      |      | LCtrl| Space| / MO(1) /       \      \  |      | TG(3)|      |      |
- *            |      |      |      |      |/       /         \      \ |      |      |      |      |
+ *            |      |      | LCtrl| Space| / MO(1) /       \      \  |      | TO   |      |      |
+ *            |      |      |      |      |/       /         \      \ |      | GAME |      |      |
  *            '-----------------------------------'           '------''---------------------------'
  */
  [GAME] = LAYOUT_split_4x6_5(
@@ -144,8 +164,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
  * |      |      |      |      |      |      |-------|    |-------|      |      |   ;  |   :  |   ?  |   |  |
  * `-----------------------------------------/       /     \      \-----------------------------------------'
- *            | RGB M| RGB M|      |      | /       /       \      \  | TD(0)| TG(3)| Left | Right|
- *            | RNBW | PLAIN|      |      |/       /         \      \ |      |      |      |      |
+ *            |      |      |      |      | /       /       \      \  |      | TO   | Left | Right|
+ *            |      |      |      |      |/       /         \      \ |      | GAME |      |      |
  *            '-----------------------------------'           '------''---------------------------'
  */
 [SYM] = LAYOUT_split_4x6_5(
@@ -167,12 +187,12 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
  * |      |      |      |      |      |      |-------|    |-------|      |      |      |  1   |  2   |  3   |
  * `-----------------------------------------/       /     \      \-----------------------------------------'
- *            |      |      |      | GAME |/       /       \      \  |      |      |      |  0   |
+ *            |      |      |      | GAME | /       /       \      \  |      |      |      |  0   |
  *            |      |      |      |      |/       /         \      \ |      |      |      |      |
  *            '-----------------------------------'           '------''---------------------------'
  */
  [EXT] = LAYOUT_split_4x6_5(
-    _______,CLR_NRM,CLR_FUN, _______,_______,_______,                           _______,_______,_______,_______,_______,_______,
+    _______,PB_1,   PB_2,   _______,_______,_______,                           _______,_______,_______,_______,_______,_______,
     _______,_______,_______,KC_UP,  _______,_______,                           _______,_______,_______,KC_KP_7,KC_KP_8,KC_KP_9,
     _______,_______,KC_LEFT,KC_DOWN,KC_RGHT,_______,                           _______,_______,_______,KC_KP_4,KC_KP_5,KC_KP_6,
     _______,_______,_______,_______,_______,_______,   _______,     _______,   _______,_______,_______,KC_KP_1,KC_KP_2,KC_KP_3,

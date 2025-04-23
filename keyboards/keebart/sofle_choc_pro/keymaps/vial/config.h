@@ -7,3 +7,5 @@
     { 0, 0 }
 
 #define DYNAMIC_KEYMAP_LAYER_COUNT 10
+
+#define RGB_MATRIX_DEFAULT_SPD 25
