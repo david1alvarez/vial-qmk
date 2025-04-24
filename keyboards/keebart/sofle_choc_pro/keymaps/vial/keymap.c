@@ -4,19 +4,15 @@
 #include QMK_KEYBOARD_H
 #define NUM_TIMEOUT 20 * 60 * 1000  // 10 min milliseconds
 
-void keyboard_post_init_kb() {
-    rgb_matrix_enable();
-    rgb_matrix_sethsv(30, 168, 255);
-    rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR);
-}
-
+// Layer state preservation for returning to the last-used layer
 bool is_screen_saver_active = false;
 uint16_t last_pattern = RGB_MATRIX_SOLID_COLOR;
 uint16_t base_layer_pattern = RGB_MATRIX_SOLID_COLOR;
 
+// Matrix setting util
 void set_matrix(uint16_t pattern) {
+    uint16_t rgb_val = rgb_matrix_get_val();
     switch (pattern) {
-
         case RGB_MATRIX_BAND_SPIRAL_VAL:
         case RGB_MATRIX_CYCLE_LEFT_RIGHT:
         case RGB_MATRIX_CYCLE_UP_DOWN:
@@ -26,33 +22,40 @@ void set_matrix(uint16_t pattern) {
         case RGB_MATRIX_CYCLE_PINWHEEL:
         case RGB_MATRIX_DUAL_BEACON:
         case RGB_MATRIX_RAINBOW_BEACON:
-            rgb_matrix_set_speed(RGB_MATRIX_DEFAULT_SPD);
-            rgb_matrix_sethsv(0, 255, 255);
-            rgb_matrix_mode(pattern);
+            rgb_matrix_set_speed_noeeprom(RGB_MATRIX_DEFAULT_SPD);
+            rgb_matrix_sethsv_noeeprom(0, 255, rgb_val);
+            rgb_matrix_mode_noeeprom(pattern);
             break;
         case RGB_MATRIX_DIGITAL_RAIN:
-            rgb_matrix_set_speed(150);
-            rgb_matrix_sethsv(0, 255, 255);
-            rgb_matrix_mode(pattern);
+            rgb_matrix_set_speed_noeeprom(150);
+            rgb_matrix_sethsv_noeeprom(0, 255, rgb_val);
+            rgb_matrix_mode_noeeprom(pattern);
             break;
         case RGB_MATRIX_GRADIENT_UP_DOWN:
             rgb_matrix_set_speed(100);
-            rgb_matrix_sethsv(175, 200, 255);
+            rgb_matrix_sethsv(175, 200, rgb_val);
             rgb_matrix_mode(pattern);
             break;
         case RGB_MATRIX_SOLID_COLOR:
             rgb_matrix_set_speed(RGB_MATRIX_DEFAULT_SPD);
-            rgb_matrix_sethsv(30, 200, 255);
+            rgb_matrix_sethsv(30, 200, rgb_val);
             rgb_matrix_mode(pattern);
             break;
         default:
             rgb_matrix_set_speed(RGB_MATRIX_DEFAULT_SPD);
-            rgb_matrix_sethsv(30, 200, 255);
+            rgb_matrix_sethsv(30, 200, rgb_val);
             rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR);
             break;
     }
 }
 
+void reset_rgb_val(void) {
+    uint8_t hue = rgb_matrix_get_hue();
+    uint8_t sat = rgb_matrix_get_sat();
+    rgb_matrix_sethsv(hue, sat, RGB_MATRIX_DEFAULT_VAL);
+}
+
+// Per-tick check, use for screensaver detection
 void matrix_scan_user(void) { // matrix screensaver
     if (is_screen_saver_active && last_input_activity_elapsed() < NUM_TIMEOUT) {
         set_matrix(last_pattern);
@@ -65,7 +68,8 @@ void matrix_scan_user(void) { // matrix screensaver
     }
 }
 
-int rgb_patterns[9] = {
+// RGB favorite patterns, for use in randomly selecting a pattern
+int rgb_patterns[] = {
     RGB_MATRIX_BAND_SPIRAL_VAL,
     RGB_MATRIX_CYCLE_LEFT_RIGHT,
     RGB_MATRIX_CYCLE_UP_DOWN,
@@ -84,6 +88,7 @@ enum layers {
     EXT,  // extension layer for arrow keys and numpad
 };
 
+// Keypress intercept
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (is_screen_saver_active) {
         return false;
@@ -95,7 +100,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     set_matrix(base_layer_pattern);
                     layer_off(GAME);
                 } else {
-                    int pattern = rgb_patterns[random() % 9];
+                    int pattern_length = sizeof(rgb_patterns) / sizeof(rgb_patterns[0]);
+                    int pattern = rgb_patterns[random() % pattern_length];
                     set_matrix(pattern);
                     layer_move(GAME);
                 }
@@ -103,16 +109,20 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return false;
         case PB_1:
             if (record->event.pressed) {
-                base_layer_pattern = RGB_MATRIX_GRADIENT_UP_DOWN;
-                set_matrix(RGB_MATRIX_GRADIENT_UP_DOWN);
-            }
-            return false;
-        case PB_2:
-            if (record->event.pressed) {
                 base_layer_pattern = RGB_MATRIX_SOLID_COLOR;
                 set_matrix(RGB_MATRIX_SOLID_COLOR);
             }
             return false;
+        case PB_2:
+            if (record->event.pressed) {
+                base_layer_pattern = RGB_MATRIX_GRADIENT_UP_DOWN;
+                set_matrix(RGB_MATRIX_GRADIENT_UP_DOWN);
+            }
+            return false;
+        case PB_3:
+            if(record->event.pressed) {
+                reset_rgb_val();
+            }
         default:
             return true; /* Process all other keycodes normally */
     }
@@ -193,9 +203,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * ,-----------------------------------------.                    ,-----------------------------------------.
  * |      | Solid| RGB  |      |      |      |                    |      |      |      |      |      |      |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |      |      |      |  Up  |      |      |                    |      |      |      |  7   |  8   |  9   |
+ * |      |      | Up   |      |      |      |                    |      |      |      |  7   |  8   |  9   |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |      |      | Left | Down | Right|      |-------.    ,-------|      |      |      |  4   |  5   |  6   |
+ * |      | Left | Down | Right|      |      |-------.    ,-------|      |      |      |  4   |  5   |  6   |
  * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
  * |      |      |      |      |      |      |-------|    |-------|      |      |      |  1   |  2   |  3   |
  * `-----------------------------------------/       /    \       \-----------------------------------------'
@@ -207,7 +217,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     _______,PB_1,   PB_2,   _______,_______,_______,                        _______,_______,_______,_______,_______,_______,
     _______,_______,_______,KC_UP,  _______,_______,                        _______,_______,_______,KC_KP_7,KC_KP_8,KC_KP_9,
     _______,_______,KC_LEFT,KC_DOWN,KC_RGHT,_______,                        _______,_______,_______,KC_KP_4,KC_KP_5,KC_KP_6,
-    _______,_______,_______,_______,_______,_______,   _______,  _______,   _______,_______,_______,KC_KP_1,KC_KP_2,KC_KP_3,
+    _______,_______,_______,_______,_______,_______,   PB_3,     _______,   _______,_______,_______,KC_KP_1,KC_KP_2,KC_KP_3,
                     _______,_______,_______,TO(GAME),  _______,  _______,   _______,_______,_______,KC_KP_0
 ),
 
@@ -216,9 +226,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 #if defined(ENCODER_MAP_ENABLE)
 const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
     [BASE] = { ENCODER_CCW_CW(KC_WH_D, KC_WH_U), ENCODER_CCW_CW(KC_VOLD, KC_VOLU) },
+    [GAME] = { ENCODER_CCW_CW(_______, _______), ENCODER_CCW_CW(_______, _______) },
     [SYM] = { ENCODER_CCW_CW(_______, _______), ENCODER_CCW_CW(_______, _______) },
-    [EXT] = { ENCODER_CCW_CW(_______, _______), ENCODER_CCW_CW(_______, _______) },
-    [GAME] = { ENCODER_CCW_CW(_______, _______), ENCODER_CCW_CW(_______, _______) }
+    [EXT] = { ENCODER_CCW_CW(RM_VALD, RM_VALU), ENCODER_CCW_CW(_______, _______) },
 };
 #endif
 
