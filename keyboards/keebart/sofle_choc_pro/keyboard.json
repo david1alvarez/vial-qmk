@@ -131,7 +131,7 @@
             {"matrix": [7, 0], "x": 224, "y": 33, "flags": 4},
             {"matrix": [8, 0], "x": 224, "y": 47, "flags": 4}
         ],
-        "max_brightness": 50,
+        "max_brightness": 200,
         "sleep": true,
         "split_count": [30, 30]
     },
