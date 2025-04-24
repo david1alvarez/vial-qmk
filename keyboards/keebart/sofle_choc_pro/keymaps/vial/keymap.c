@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include QMK_KEYBOARD_H
-#define NUM_TIMEOUT 10 * 60 * 1000  // 10 min milliseconds
+#define NUM_TIMEOUT 20 * 60 * 1000  // 10 min milliseconds
 
 void keyboard_post_init_kb() {
     rgb_matrix_enable();
@@ -16,7 +16,7 @@ uint16_t base_layer_pattern = RGB_MATRIX_SOLID_COLOR;
 
 void set_matrix(uint16_t pattern) {
     switch (pattern) {
-        case RGB_MATRIX_DIGITAL_RAIN:
+
         case RGB_MATRIX_BAND_SPIRAL_VAL:
         case RGB_MATRIX_CYCLE_LEFT_RIGHT:
         case RGB_MATRIX_CYCLE_UP_DOWN:
@@ -26,19 +26,28 @@ void set_matrix(uint16_t pattern) {
         case RGB_MATRIX_CYCLE_PINWHEEL:
         case RGB_MATRIX_DUAL_BEACON:
         case RGB_MATRIX_RAINBOW_BEACON:
+            rgb_matrix_set_speed(RGB_MATRIX_DEFAULT_SPD);
+            rgb_matrix_sethsv(0, 255, 255);
+            rgb_matrix_mode(pattern);
+            break;
+        case RGB_MATRIX_DIGITAL_RAIN:
+            rgb_matrix_set_speed(150);
             rgb_matrix_sethsv(0, 255, 255);
             rgb_matrix_mode(pattern);
             break;
         case RGB_MATRIX_GRADIENT_UP_DOWN:
-            rgb_matrix_sethsv(157, 168, 255);
+            rgb_matrix_set_speed(100);
+            rgb_matrix_sethsv(175, 200, 255);
             rgb_matrix_mode(pattern);
             break;
         case RGB_MATRIX_SOLID_COLOR:
-            rgb_matrix_sethsv(30, 168, 255);
+            rgb_matrix_set_speed(RGB_MATRIX_DEFAULT_SPD);
+            rgb_matrix_sethsv(30, 200, 255);
             rgb_matrix_mode(pattern);
             break;
         default:
-            rgb_matrix_sethsv(30, 168, 255);
+            rgb_matrix_set_speed(RGB_MATRIX_DEFAULT_SPD);
+            rgb_matrix_sethsv(30, 200, 255);
             rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR);
             break;
     }
@@ -76,6 +85,9 @@ enum layers {
 };
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    if (is_screen_saver_active) {
+        return false;
+    }  
     switch (keycode) {
         case TO(GAME):
             if (record->event.pressed) {
@@ -117,40 +129,40 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * | Tab  |   A  |   S  |   D  |   F  |   G  |-------.    ,-------|   H  |   J  |   K  |   L  |   P  |  '"  |
  * |------+------+------+------+------+------|  Caps |    | Mute  |------+------+------+------+------+------|
  * |LShift|   Z  |   X  |   C  |   V  |   B  |-------|    |-------|   N  |   M  |  ,<  |  .>  |  /?  |  \|  |
- * `-----------------------------------------/       /     \      \-----------------------------------------'
- *            | LCTL | LALT | LCMD | MO(1)| /RShift /       \Space \  | Enter| MO(2)| Down |  Up  |
- *            |      |      |      |      |/       /         \      \ |      |      |      |      |
- *            '-----------------------------------'           '------''---------------------------'
+ * `-----------------------------------------/       /    \       \-----------------------------------------'
+ *            | LCTL | LALT | LCMD | MO   | /RShift /      \ Space \  | Enter| MO   | Down |  Up  |
+ *            |      |      |      | SYM  |/       /        \       \ |      | EXT  |      |      |
+ *            '-----------------------------------'          '-------''---------------------------'
  */
 [BASE] = LAYOUT_split_4x6_5(
-    KC_ESC,   KC_1,   KC_2,    KC_3,    KC_4,    KC_5,                           KC_6,     KC_7,     KC_8,    KC_9,    KC_0,     KC_MINUS,
-    KC_GRAVE, KC_Q,   KC_W,    KC_E,    KC_R,    KC_T,                           KC_Y,     KC_U,     KC_I,    KC_O,    KC_SCLN,  KC_BSPC,
-    KC_TAB,   KC_A,   KC_S,    KC_D,    KC_F,    KC_G,                           KC_H,     KC_J,     KC_K,    KC_L,    KC_P,     KC_QUOT,
-    KC_LSFT,  KC_Z,   KC_X,    KC_C,    KC_V,    KC_B,    KC_CAPS,   KC_MUTE,    KC_N,     KC_M,     KC_COMM, KC_DOT,  KC_SLSH,  KC_BSLS,
-                      KC_LCTL, KC_LALT, KC_LGUI, MO(SYM), KC_RSFT,   KC_SPC,     KC_ENTER, MO(EXT),    KC_DOWN, KC_UP
+    KC_ESC,   KC_1,   KC_2,    KC_3,    KC_4,    KC_5,                         KC_6,     KC_7,     KC_8,    KC_9,    KC_0,     KC_MINUS,
+    KC_GRAVE, KC_Q,   KC_W,    KC_E,    KC_R,    KC_T,                         KC_Y,     KC_U,     KC_I,    KC_O,    KC_SCLN,  KC_BSPC,
+    KC_TAB,   KC_A,   KC_S,    KC_D,    KC_F,    KC_G,                         KC_H,     KC_J,     KC_K,    KC_L,    KC_P,     KC_QUOT,
+    KC_LSFT,  KC_Z,   KC_X,    KC_C,    KC_V,    KC_B,    KC_CAPS,   KC_MUTE,  KC_N,     KC_M,     KC_COMM, KC_DOT,  KC_SLSH,  KC_BSLS,
+                      KC_LCTL, KC_LALT, KC_LGUI, MO(SYM), KC_RSFT,   KC_SPC,   KC_ENTER, MO(EXT),    KC_DOWN, KC_UP
 ),
 
 /* 
  * GAME -- gaming-compatible layer
  * ,-----------------------------------------.                    ,-----------------------------------------.
- * |      |      |      |      |      |      |                    |      |      |      |      |      |      |
+ * | Esc  |   1! |   2@ |   3# |   4$ |   5% |                    |   6^ |   7& |   8* |  9(  |  0)  |  -_  |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |      |      |      |      |      |      |                    |      |      |      |      |      |      |
+ * | `~   |   Q  |   W  |   E  |   R  |   T  |                    |   Y  |   U  |   I  |   O  |  ;:  | Bspc |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |      |      |      |      |      |      |-------.    ,-------|      |      |      |      |      |      |
- * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
- * |      |      |      |      |      |      |-------|    |-------|      |      |      |      |      |      |
- * `-----------------------------------------/       /     \      \-----------------------------------------'
- *            |      |      | LCtrl| Space| / MO(1) /       \      \  |      | TO   |      |      |
- *            |      |      |      |      |/       /         \      \ |      | GAME |      |      |
- *            '-----------------------------------'           '------''---------------------------'
+ * | Tab  |   A  |   S  |   D  |   F  |   G  |-------.    ,-------|   H  |   J  |   K  |   L  |   P  |  '"  |
+ * |------+------+------+------+------+------|  Caps |    | Mute  |------+------+------+------+------+------|
+ * |LShift|   Z  |   X  |   C  |   V  |   B  |-------|    |-------|   N  |   M  |  ,<  |  .>  |  /?  |  \|  |
+ * `-----------------------------------------/       /    \       \-----------------------------------------'
+ *            | LCMD | LALT | LCTL | MO   | / Space /      \ Space \  | Enter| MO   | Down |  Up  |
+ *            |      |      |      | SYM  |/       /        \       \ |      | EXT  |      |      |
+ *            '-----------------------------------'          '-------''---------------------------'
  */
  [GAME] = LAYOUT_split_4x6_5(
-    KC_ESC,   KC_1,   KC_2,    KC_3,    KC_4,    KC_5,                          KC_6,     KC_7,    KC_8,    KC_9,    KC_0,     KC_MINUS,
-    KC_GRAVE, KC_Q,   KC_W,    KC_E,    KC_R,    KC_T,                          KC_Y,     KC_U,    KC_I,    KC_O,    KC_SCLN,  KC_BSPC,
-    KC_TAB,   KC_A,   KC_S,    KC_D,    KC_F,    KC_G,                          KC_H,     KC_J,    KC_K,    KC_L,    KC_P,     KC_QUOT,
-    KC_LSFT,  KC_Z,   KC_X,    KC_C,    KC_V,    KC_B,   KC_CAPS,      KC_MUTE, KC_N,     KC_M,    KC_COMM, KC_DOT,  KC_SLSH,  KC_BSLS,
-                      KC_LCTL, KC_LALT, KC_LCTL, KC_SPC, MO(SYM),  KC_SPC,  KC_ENTER, TO(GAME), KC_DOWN, KC_UP
+    KC_ESC,   KC_1,   KC_2,    KC_3,    KC_4,    KC_5,                       KC_6,     KC_7,    KC_8,    KC_9,    KC_0,     KC_MINUS,
+    KC_GRAVE, KC_Q,   KC_W,    KC_E,    KC_R,    KC_T,                       KC_Y,     KC_U,    KC_I,    KC_O,    KC_SCLN,  KC_BSPC,
+    KC_TAB,   KC_A,   KC_S,    KC_D,    KC_F,    KC_G,                       KC_H,     KC_J,    KC_K,    KC_L,    KC_P,     KC_QUOT,
+    KC_LSFT,  KC_Z,   KC_X,    KC_C,    KC_V,    KC_B,   KC_CAPS,  KC_MUTE,  KC_N,     KC_M,    KC_COMM, KC_DOT,  KC_SLSH,  KC_BSLS,
+                      KC_LGUI, KC_LALT, KC_LCTL, KC_SPC, MO(SYM),  KC_SPC,   KC_ENTER, TO(GAME), KC_DOWN, KC_UP
 ),
 
 /*
@@ -163,10 +175,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * |   _  |   -  |   |  |   [  |   (  |   {  |-------.    ,-------|   }  |   )  |   ]  |   =  |   +  |      |
  * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
  * |      |      |      |      |      |      |-------|    |-------|      |      |   ;  |   :  |   ?  |   |  |
- * `-----------------------------------------/       /     \      \-----------------------------------------'
- *            |      |      |      |      | /       /       \      \  |      | TO   | Left | Right|
- *            |      |      |      |      |/       /         \      \ |      | GAME |      |      |
- *            '-----------------------------------'           '------''---------------------------'
+ * `-----------------------------------------/       /    \       \-----------------------------------------'
+ *            |      |      |      |      | /       /      \       \  |      | TO   | Left | Right|
+ *            |      |      |      |      |/       /        \       \ |      | GAME |      |      |
+ *            '-----------------------------------'          '-------''---------------------------'
  */
 [SYM] = LAYOUT_split_4x6_5(
     _______,       KC_F1,      KC_F2,         KC_F3,      KC_F4,      KC_F5,                           KC_F6,         KC_F7,      KC_F8,      KC_F9,         KC_F10,        KC_EQL,
@@ -186,17 +198,17 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * |      |      | Left | Down | Right|      |-------.    ,-------|      |      |      |  4   |  5   |  6   |
  * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
  * |      |      |      |      |      |      |-------|    |-------|      |      |      |  1   |  2   |  3   |
- * `-----------------------------------------/       /     \      \-----------------------------------------'
- *            |      |      |      | GAME | /       /       \      \  |      |      |      |  0   |
- *            |      |      |      |      |/       /         \      \ |      |      |      |      |
- *            '-----------------------------------'           '------''---------------------------'
+ * `-----------------------------------------/       /    \       \-----------------------------------------'
+ *            |      |      |      | GAME | /       /      \       \  |      |      |      |  0   |
+ *            |      |      |      |      |/       /        \       \ |      |      |      |      |
+ *            '-----------------------------------'          '-------''---------------------------'
  */
  [EXT] = LAYOUT_split_4x6_5(
-    _______,PB_1,   PB_2,   _______,_______,_______,                           _______,_______,_______,_______,_______,_______,
-    _______,_______,_______,KC_UP,  _______,_______,                           _______,_______,_______,KC_KP_7,KC_KP_8,KC_KP_9,
-    _______,_______,KC_LEFT,KC_DOWN,KC_RGHT,_______,                           _______,_______,_______,KC_KP_4,KC_KP_5,KC_KP_6,
-    _______,_______,_______,_______,_______,_______,   _______,     _______,   _______,_______,_______,KC_KP_1,KC_KP_2,KC_KP_3,
-                    _______,_______,_______,TO(GAME),   _______,     _______,   _______,_______,_______,KC_KP_0
+    _______,PB_1,   PB_2,   _______,_______,_______,                        _______,_______,_______,_______,_______,_______,
+    _______,_______,_______,KC_UP,  _______,_______,                        _______,_______,_______,KC_KP_7,KC_KP_8,KC_KP_9,
+    _______,_______,KC_LEFT,KC_DOWN,KC_RGHT,_______,                        _______,_______,_______,KC_KP_4,KC_KP_5,KC_KP_6,
+    _______,_______,_______,_______,_______,_______,   _______,  _______,   _______,_______,_______,KC_KP_1,KC_KP_2,KC_KP_3,
+                    _______,_______,_______,TO(GAME),  _______,  _______,   _______,_______,_______,KC_KP_0
 ),
 
 };
