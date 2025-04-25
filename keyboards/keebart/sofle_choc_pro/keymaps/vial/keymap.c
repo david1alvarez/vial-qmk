@@ -9,10 +9,48 @@ bool is_screen_saver_active = false;
 uint16_t last_pattern = RGB_MATRIX_SOLID_COLOR;
 uint16_t base_layer_pattern = RGB_MATRIX_SOLID_COLOR;
 
-// Matrix setting util
-void set_matrix(uint16_t pattern) {
-    uint16_t rgb_val = rgb_matrix_get_val();
+const uint16_t  solid_color_hue_default = RGB_MATRIX_DEFAULT_HUE;
+const uint16_t  solid_color_sat_default = RGB_MATRIX_DEFAULT_SAT;
+const uint16_t  solid_color_spd_default = RGB_MATRIX_DEFAULT_SPD;
+uint16_t        solid_color_hue = solid_color_hue_default;
+uint16_t        solid_color_sat = solid_color_sat_default;
+uint16_t        solid_color_spd = solid_color_spd_default;
+
+const uint16_t  gradient_up_down_hue_default = 175;
+const uint16_t  gradient_up_down_sat_default = RGB_MATRIX_DEFAULT_SAT;
+const uint16_t  gradient_up_down_spd_default = 100;
+uint16_t        gradient_up_down_hue = gradient_up_down_hue_default;
+uint16_t        gradient_up_down_sat = gradient_up_down_sat_default;
+uint16_t        gradient_up_down_spd = gradient_up_down_spd_default;
+
+const uint16_t  rgb_patterns_hue_default = 0;
+const uint16_t  rgb_patterns_sat_default = 255;
+const uint16_t  rgb_patterns_spd_default = RGB_MATRIX_DEFAULT_SPD;
+uint16_t        rgb_patterns_hue = rgb_patterns_hue_default;
+uint16_t        rgb_patterns_sat = rgb_patterns_sat_default;
+uint16_t        rgb_patterns_spd = rgb_patterns_spd_default;
+
+const uint16_t  digital_rain_hue_default = 0;
+const uint16_t  digital_rain_sat_default = 255;
+const uint16_t  digital_rain_spd_default = 150;
+uint16_t        digital_rain_hue = digital_rain_hue_default;
+uint16_t        digital_rain_sat = digital_rain_sat_default;
+uint16_t        digital_rain_spd = digital_rain_spd_default;
+
+enum rgb_control_groups {
+    SOLID_GROUP,
+    GRADIENT_GROUP,
+    RGB_PATTERN_GROUP,
+    MATRIX_GROUP,
+};
+
+// Map patterns to rgb_control_groups
+enum rgb_control_groups get_rgb_control_group(uint16_t pattern) {
     switch (pattern) {
+        case RGB_MATRIX_SOLID_COLOR:
+            return SOLID_GROUP;
+        case RGB_MATRIX_GRADIENT_UP_DOWN:
+            return GRADIENT_GROUP;
         case RGB_MATRIX_BAND_SPIRAL_VAL:
         case RGB_MATRIX_CYCLE_LEFT_RIGHT:
         case RGB_MATRIX_CYCLE_UP_DOWN:
@@ -22,37 +60,102 @@ void set_matrix(uint16_t pattern) {
         case RGB_MATRIX_CYCLE_PINWHEEL:
         case RGB_MATRIX_DUAL_BEACON:
         case RGB_MATRIX_RAINBOW_BEACON:
-            rgb_matrix_set_speed_noeeprom(RGB_MATRIX_DEFAULT_SPD);
-            rgb_matrix_sethsv_noeeprom(0, 255, rgb_val);
-            rgb_matrix_mode_noeeprom(pattern);
-            break;
+            return RGB_PATTERN_GROUP;
         case RGB_MATRIX_DIGITAL_RAIN:
-            rgb_matrix_set_speed_noeeprom(150);
-            rgb_matrix_sethsv_noeeprom(0, 255, rgb_val);
-            rgb_matrix_mode_noeeprom(pattern);
-            break;
-        case RGB_MATRIX_GRADIENT_UP_DOWN:
-            rgb_matrix_set_speed(100);
-            rgb_matrix_sethsv(175, 200, rgb_val);
-            rgb_matrix_mode(pattern);
-            break;
-        case RGB_MATRIX_SOLID_COLOR:
-            rgb_matrix_set_speed(RGB_MATRIX_DEFAULT_SPD);
-            rgb_matrix_sethsv(30, 200, rgb_val);
-            rgb_matrix_mode(pattern);
-            break;
+            return MATRIX_GROUP;
         default:
-            rgb_matrix_set_speed(RGB_MATRIX_DEFAULT_SPD);
-            rgb_matrix_sethsv(30, 200, rgb_val);
-            rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR);
-            break;
+            return SOLID_GROUP;
     }
 }
 
+// Matrix setting util
+void set_matrix(uint16_t pattern) {
+    uint16_t rgb_val = rgb_matrix_get_val();
+    enum rgb_control_groups control_group = get_rgb_control_group(pattern);
+    switch (control_group) {
+        case SOLID_GROUP:
+            rgb_matrix_set_speed(solid_color_spd);
+            rgb_matrix_sethsv(solid_color_hue, solid_color_sat, rgb_val);
+            rgb_matrix_mode(pattern);
+            break;
+        case GRADIENT_GROUP:
+            rgb_matrix_set_speed(gradient_up_down_spd);
+            rgb_matrix_sethsv(gradient_up_down_hue, gradient_up_down_sat, rgb_val);
+            rgb_matrix_mode(pattern);
+            break;
+        case RGB_PATTERN_GROUP:
+            rgb_matrix_set_speed_noeeprom(rgb_patterns_spd);
+            rgb_matrix_sethsv_noeeprom(rgb_patterns_hue, rgb_patterns_sat, rgb_val);
+            rgb_matrix_mode_noeeprom(pattern);
+            break;
+        case MATRIX_GROUP:
+            rgb_matrix_set_speed_noeeprom(digital_rain_spd);
+            rgb_matrix_sethsv_noeeprom(digital_rain_hue, digital_rain_sat, rgb_val);
+            rgb_matrix_mode_noeeprom(pattern);
+            break;
+        default:
+            break;
+   }
+}
+
+// Reset the board brightness
 void reset_rgb_val(void) {
     uint8_t hue = rgb_matrix_get_hue();
     uint8_t sat = rgb_matrix_get_sat();
     rgb_matrix_sethsv(hue, sat, RGB_MATRIX_DEFAULT_VAL);
+}
+
+void save_rgb_group_hue(void) {
+    uint8_t hue = rgb_matrix_get_hue();
+    uint8_t pattern = rgb_matrix_get_mode();
+    uint8_t control_group = get_rgb_control_group(pattern);
+    switch (control_group) {
+        case SOLID_GROUP:
+            solid_color_hue = hue;
+            break;
+        case GRADIENT_GROUP:
+            gradient_up_down_hue = hue;
+            break;
+        case RGB_PATTERN_GROUP:
+            rgb_patterns_hue = hue;
+            break;
+        case MATRIX_GROUP:
+            digital_rain_hue = hue;
+            break;
+        default:
+            break;
+    }
+}
+
+// Reset the rgb hue of each group independently
+void reset_rgb_hue(void) {
+    uint8_t hue = RGB_MATRIX_DEFAULT_HUE;
+    uint8_t pattern = rgb_matrix_get_mode();
+    uint8_t control_group = get_rgb_control_group(pattern);
+    switch (control_group) {
+        case SOLID_GROUP:
+            hue = solid_color_hue_default;
+            solid_color_hue = solid_color_hue_default;
+            break;
+        case GRADIENT_GROUP:
+            hue = gradient_up_down_hue_default;
+            gradient_up_down_hue = gradient_up_down_hue_default;
+            break;
+        case RGB_PATTERN_GROUP:
+            hue = rgb_patterns_hue_default;
+            rgb_patterns_hue = rgb_patterns_hue_default;
+            break;
+        case MATRIX_GROUP:
+            hue = digital_rain_hue_default;
+            digital_rain_hue = digital_rain_hue_default;
+            break;
+        default:
+            break;
+    }
+
+    uint8_t sat = rgb_matrix_get_sat();
+    uint8_t val = rgb_matrix_get_val();
+    rgb_matrix_sethsv(hue, sat, val);
 }
 
 // Per-tick check, use for screensaver detection
@@ -123,6 +226,18 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if(record->event.pressed) {
                 reset_rgb_val();
             }
+            return false;
+        case PB_4:
+            if(record->event.pressed) {
+                reset_rgb_hue();
+            }
+            return false;
+        case RM_HUED:
+        case RM_HUEU:
+            if(!record->event.pressed) {
+                save_rgb_group_hue();
+            }
+            return true;
         default:
             return true; /* Process all other keycodes normally */
     }
@@ -183,7 +298,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * |      |   !  |   @  |   #  |   $  |   %  |                    |   ^  |   &  |   *  |  F11 |  F12 |  Del |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
  * |   _  |   -  |   |  |   [  |   (  |   {  |-------.    ,-------|   }  |   )  |   ]  |   =  |   +  |      |
- * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
+ * |------+------+------+------+------+------|RGB Val|    |RGB Hue|------+------+------+------+------+------|
  * |      |      |      |      |      |      |-------|    |-------|      |      |   ;  |   :  |   ?  |   |  |
  * `-----------------------------------------/       /    \       \-----------------------------------------'
  *            |      |      |      |      | /       /      \       \  |      | TO   | Left | Right|
@@ -194,8 +309,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     _______,       KC_F1,      KC_F2,         KC_F3,      KC_F4,      KC_F5,                           KC_F6,         KC_F7,      KC_F8,      KC_F9,         KC_F10,        KC_EQL,
     _______,       LSFT(KC_1), LSFT(KC_2),    LSFT(KC_3), LSFT(KC_4), LSFT(KC_5),                      LSFT(KC_6),    LSFT(KC_7), LSFT(KC_8), KC_F11,        KC_F12,        KC_DEL,
     LSFT(KC_MINS), KC_MINS,    LSFT(KC_BSLS), KC_LBRC,    LSFT(KC_9), LSFT(KC_LBRC),                   LSFT(KC_RBRC), LSFT(KC_0), KC_RBRC,    KC_EQL,        LSFT(KC_EQL),  _______,
-    _______,       _______,    _______,       _______,    _______,    _______,     _______, _______,   _______,       _______,    KC_SCLN,    LSFT(KC_SCLN), LSFT(KC_SLSH), LSFT(KC_BSLS),
-                               _______,       _______,    _______,    _______,     _______, _______,   _______,       TO(GAME),    KC_LEFT,    KC_RGHT
+    _______,       _______,    _______,       _______,    _______,    _______,     PB_3,     PB_4,     _______,       _______,    KC_SCLN,    LSFT(KC_SCLN), LSFT(KC_SLSH), LSFT(KC_BSLS),
+                               _______,       _______,    _______,    _______,     _______,  _______,  _______,       TO(GAME),    KC_LEFT,    KC_RGHT
 ),
 
 /*
@@ -217,7 +332,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     _______,PB_1,   PB_2,   _______,_______,_______,                        _______,_______,_______,_______,_______,_______,
     _______,_______,_______,KC_UP,  _______,_______,                        _______,_______,_______,KC_KP_7,KC_KP_8,KC_KP_9,
     _______,_______,KC_LEFT,KC_DOWN,KC_RGHT,_______,                        _______,_______,_______,KC_KP_4,KC_KP_5,KC_KP_6,
-    _______,_______,_______,_______,_______,_______,   PB_3,     _______,   _______,_______,_______,KC_KP_1,KC_KP_2,KC_KP_3,
+    _______,_______,_______,_______,_______,_______,   _______,  _______,   _______,_______,_______,KC_KP_1,KC_KP_2,KC_KP_3,
                     _______,_______,_______,TO(GAME),  _______,  _______,   _______,_______,_______,KC_KP_0
 ),
 
@@ -227,8 +342,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
     [BASE] = { ENCODER_CCW_CW(KC_WH_D, KC_WH_U), ENCODER_CCW_CW(KC_VOLD, KC_VOLU) },
     [GAME] = { ENCODER_CCW_CW(_______, _______), ENCODER_CCW_CW(_______, _______) },
-    [SYM] = { ENCODER_CCW_CW(_______, _______), ENCODER_CCW_CW(_______, _______) },
-    [EXT] = { ENCODER_CCW_CW(RM_VALD, RM_VALU), ENCODER_CCW_CW(_______, _______) },
+    [SYM] = { ENCODER_CCW_CW(RM_VALD, RM_VALU), ENCODER_CCW_CW(RM_HUED, RM_HUEU) },
+    [EXT] = { ENCODER_CCW_CW(_______, _______), ENCODER_CCW_CW(_______, _______) },
 };
 #endif
 
